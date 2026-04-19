@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HTAE Map</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  >
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: #f5f7fb;
+      color: #1f2937;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      background: #ffffff;
+      border-bottom: 1px solid #dbe2ea;
+    }
+
+    .header-copy {
+      min-width: 0;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .header p {
+      margin: 4px 0 0;
+      font-size: 14px;
+      color: #4b5563;
+    }
+
+    .panel-toggle,
+    .new-stream-button,
+    .subscribe-button,
+    .modal-submit,
+    .modal-cancel {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .panel-toggle,
+    .modal-submit {
+      background: #111827;
+      color: #ffffff;
+    }
+
+    .new-stream-button {
+      width: 100%;
+      margin-bottom: 16px;
+      background: #e5eefb;
+      color: #1d4ed8;
+    }
+
+    .subscribe-button {
+      background: #111827;
+      color: #ffffff;
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+
+    .subscribe-button[disabled] {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    .modal-cancel {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .side-panel {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 1200;
+      width: min(360px, calc(100vw - 32px));
+      height: 100vh;
+      padding: 18px 16px;
+      background: #ffffff;
+      border-right: 1px solid #dbe2ea;
+      box-shadow: 0 16px 40px rgba(17, 24, 39, 0.18);
+      transform: translateX(-100%);
+      transition: transform 160ms ease;
+      overflow-y: auto;
+    }
+
+    .side-panel.is-open {
+      transform: translateX(0);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .panel-close {
+      border: 0;
+      background: transparent;
+      color: #4b5563;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .panel-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .panel-tab {
+      border: 1px solid #d1d5db;
+      border-radius: 999px;
+      background: #f9fafb;
+      color: #374151;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .panel-tab.is-active {
+      background: #111827;
+      border-color: #111827;
+      color: #ffffff;
+    }
+
+    .panel-view[hidden] {
+      display: none;
+    }
+
+    .panel-section {
+      margin-top: 18px;
+    }
+
+    .panel-section:first-child {
+      margin-top: 0;
+    }
+
+    .panel-section-title {
+      margin: 0 0 10px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #4b5563;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .stream-list,
+    .filter-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .stream-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      background: #f9fafb;
+    }
+
+    .stream-meta {
+      min-width: 0;
+    }
+
+    .stream-name {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .stream-owner,
+    .stream-description,
+    .empty-state,
+    .filter-note {
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    .filter-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: #f3f4f6;
+      font-size: 13px;
+    }
+
+    .filter-item input {
+      margin: 0;
+    }
+
+    .filter-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+    }
+
+    .panel-backdrop,
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.28);
+    }
+
+    .panel-backdrop {
+      z-index: 1100;
+    }
+
+    .modal-backdrop {
+      z-index: 1290;
+    }
+
+    .panel-backdrop[hidden],
+    .modal-backdrop[hidden] {
+      display: none;
+    }
+
+    #map {
+      height: calc(100vh - 68px);
+      width: 100%;
+    }
+
+    .post-controls {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 1000;
+      display: grid;
+      gap: 8px;
+      width: min(220px, calc(100vw - 32px));
+    }
+
+    .stream-select,
+    .modal-field input,
+    .modal-field textarea,
+    .modal-field select {
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      background: #ffffff;
+      color: #111827;
+      padding: 10px 12px;
+      font-size: 14px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .stream-select {
+      box-shadow: 0 10px 24px rgba(17, 24, 39, 0.12);
+    }
+
+    .post-button {
+      border: 0;
+      border-radius: 999px;
+      background: #111827;
+      color: #ffffff;
+      padding: 12px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 10px 24px rgba(17, 24, 39, 0.22);
+    }
+
+    .post-button:disabled {
+      cursor: wait;
+      opacity: 0.7;
+    }
+
+    .leaflet-popup-content {
+      margin: 10px 12px;
+    }
+
+    .stream-marker {
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      border: 2px solid #ffffff;
+      box-shadow: 0 8px 18px rgba(17, 24, 39, 0.24);
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .popup-title {
+      margin: 0 0 6px;
+      font-weight: 700;
+    }
+
+    .popup-text {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1300;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+
+    .modal[hidden] {
+      display: none;
+    }
+
+    .modal-card {
+      width: min(460px, 100%);
+      max-height: calc(100vh - 32px);
+      overflow-y: auto;
+      border-radius: 18px;
+      background: #ffffff;
+      box-shadow: 0 18px 44px rgba(17, 24, 39, 0.22);
+      padding: 18px;
+    }
+
+    .modal-title {
+      margin: 0 0 16px;
+      font-size: 18px;
+    }
+
+    .modal-field {
+      margin-top: 12px;
+    }
+
+    .modal-field label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #374151;
+    }
+
+    .modal-field textarea {
+      min-height: 92px;
+      resize: vertical;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <header class="header">
+      <div class="header-copy">
+        <h1>HTAE</h1>
+        <p>Simple GIS-based SNS viewer</p>
+      </div>
+      <button id="panel-toggle" class="panel-toggle" type="button">☰ Filter</button>
+    </header>
+    <main id="map"></main>
+    <div class="post-controls">
+      <select id="stream-select" class="stream-select" aria-label="Select stream"></select>
+      <button id="post-button" class="post-button" type="button">Post</button>
+    </div>
+  </div>
+
+  <aside id="side-panel" class="side-panel" aria-hidden="true">
+    <div class="panel-header">
+      <h2 class="panel-title">Streams</h2>
+      <button id="panel-close" class="panel-close" type="button" aria-label="Close panel">&times;</button>
+    </div>
+
+    <div class="panel-tabs">
+      <button id="streams-tab" class="panel-tab is-active" type="button">Streams</button>
+      <button id="filter-tab" class="panel-tab" type="button">Filter</button>
+    </div>
+
+    <section id="streams-view" class="panel-view">
+      <button id="new-stream-button" class="new-stream-button" type="button">+ New Stream</button>
+
+      <div class="panel-section">
+        <h3 class="panel-section-title">Owned Streams</h3>
+        <div id="owned-streams" class="stream-list"></div>
+      </div>
+
+      <div class="panel-section">
+        <h3 class="panel-section-title">Other Streams</h3>
+        <div id="other-streams" class="stream-list"></div>
+      </div>
+    </section>
+
+    <section id="filter-view" class="panel-view" hidden>
+      <div class="panel-section">
+        <h3 class="panel-section-title">Active Filters</h3>
+        <p class="filter-note">Owned and subscribed streams are shown here. Filtering stays in the browser.</p>
+        <div id="filter-list" class="filter-list"></div>
+      </div>
+    </section>
+  </aside>
+
+  <div id="panel-backdrop" class="panel-backdrop" hidden></div>
+
+  <div id="stream-modal" class="modal" hidden>
+    <div class="modal-card">
+      <h2 class="modal-title">Create Stream</h2>
+      <form id="stream-form">
+        <div class="modal-field">
+          <label for="stream-name">Name</label>
+          <input id="stream-name" name="name" type="text" required>
+        </div>
+        <div class="modal-field">
+          <label for="stream-description">Description</label>
+          <textarea id="stream-description" name="description"></textarea>
+        </div>
+        <div class="modal-field">
+          <label for="stream-color">Color</label>
+          <select id="stream-color" name="color"></select>
+        </div>
+        <div class="modal-field">
+          <label for="stream-emoji">Emoji</label>
+          <select id="stream-emoji" name="emoji"></select>
+        </div>
+        <div class="modal-actions">
+          <button id="modal-cancel" class="modal-cancel" type="button">Cancel</button>
+          <button id="modal-submit" class="modal-submit" type="submit">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div id="modal-backdrop" class="modal-backdrop" hidden></div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script>
+    const CURRENT_USER_ID = 1;
+    const STREAM_COLORS = [
+      "#e74c3c",
+      "#3498db",
+      "#2ecc71",
+      "#f1c40f",
+      "#9b59b6",
+      "#e67e22",
+      "#1abc9c",
+      "#34495e"
+    ];
+    const STREAM_EMOJIS = ["☕", "🍜", "🌳", "📍", "⭐", "🏠", "🛒", "📷", "🎉"];
+
+    const state = {
+      streams: [],
+      subscriptions: new Set(),
+      filterEnabled: new Set(),
+      posts: [],
+      activeTab: "streams"
+    };
+
+    const map = L.map("map").setView([35.68, 139.76], 12);
+    const markersLayer = L.layerGroup().addTo(map);
+    const postButton = document.getElementById("post-button");
+    const streamSelect = document.getElementById("stream-select");
+    const filterList = document.getElementById("filter-list");
+    const ownedStreams = document.getElementById("owned-streams");
+    const otherStreams = document.getElementById("other-streams");
+    const sidePanel = document.getElementById("side-panel");
+    const panelToggle = document.getElementById("panel-toggle");
+    const panelClose = document.getElementById("panel-close");
+    const panelBackdrop = document.getElementById("panel-backdrop");
+    const streamsTab = document.getElementById("streams-tab");
+    const filterTab = document.getElementById("filter-tab");
+    const streamsView = document.getElementById("streams-view");
+    const filterView = document.getElementById("filter-view");
+    const newStreamButton = document.getElementById("new-stream-button");
+    const streamModal = document.getElementById("stream-modal");
+    const modalBackdrop = document.getElementById("modal-backdrop");
+    const modalCancel = document.getElementById("modal-cancel");
+    const streamForm = document.getElementById("stream-form");
+    const modalSubmit = document.getElementById("modal-submit");
+    const streamColor = document.getElementById("stream-color");
+    const streamEmoji = document.getElementById("stream-emoji");
+    const streamName = document.getElementById("stream-name");
+    const streamDescription = document.getElementById("stream-description");
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
+
+    function populateModalOptions() {
+      for (const color of STREAM_COLORS) {
+        const option = document.createElement("option");
+        option.value = color;
+        option.textContent = color;
+        streamColor.append(option);
+      }
+
+      for (const emoji of STREAM_EMOJIS) {
+        const option = document.createElement("option");
+        option.value = emoji;
+        option.textContent = emoji;
+        streamEmoji.append(option);
+      }
+    }
+
+    async function fetchJson(url, options) {
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        throw new Error(`Request failed: ${response.status}`);
+      }
+
+      return response.json();
+    }
+
+    function ownedStreamsData() {
+      return state.streams.filter((stream) => stream.user_id === CURRENT_USER_ID);
+    }
+
+    function postableStreams() {
+      return ownedStreamsData();
+    }
+
+    function availableStreamsForUser() {
+      return state.streams.filter(
+        (stream) =>
+          stream.user_id === CURRENT_USER_ID || state.subscriptions.has(stream.id)
+      );
+    }
+
+    function syncFilterSet() {
+      const allowedIds = new Set(availableStreamsForUser().map((stream) => stream.id));
+
+      for (const id of Array.from(state.filterEnabled)) {
+        if (!allowedIds.has(id)) {
+          state.filterEnabled.delete(id);
+        }
+      }
+    }
+
+    async function loadAppData() {
+      const [streams, subscriptions, posts] = await Promise.all([
+        fetchJson("/streams"),
+        fetchJson("/subscriptions"),
+        fetchJson("/posts")
+      ]);
+
+      state.streams = streams;
+      state.subscriptions = new Set(subscriptions);
+      state.posts = posts;
+      state.filterEnabled = new Set(availableStreamsForUser().map((stream) => stream.id));
+      syncFilterSet();
+      renderAll();
+    }
+
+    async function createPost(payload) {
+      await fetchJson("/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+      state.posts = await fetchJson("/posts");
+      renderPosts();
+    }
+
+    async function subscribeToStream(streamId) {
+      await fetchJson("/subscriptions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ stream_id: streamId })
+      });
+
+      state.subscriptions.add(streamId);
+      state.filterEnabled.add(streamId);
+      renderAll();
+    }
+
+    async function createStream(payload) {
+      const stream = await fetchJson("/streams", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      state.streams.push(stream);
+      state.subscriptions.add(stream.id);
+      state.filterEnabled.add(stream.id);
+      renderAll();
+    }
+
+    function setActiveTab(tab) {
+      state.activeTab = tab;
+      const isStreamsTab = tab === "streams";
+      streamsTab.classList.toggle("is-active", isStreamsTab);
+      filterTab.classList.toggle("is-active", !isStreamsTab);
+      streamsView.hidden = !isStreamsTab;
+      filterView.hidden = isStreamsTab;
+    }
+
+    function createEmptyState(message) {
+      const element = document.createElement("p");
+      element.className = "empty-state";
+      element.textContent = message;
+      return element;
+    }
+
+    function renderDiscoveryLists() {
+      ownedStreams.innerHTML = "";
+      otherStreams.innerHTML = "";
+
+      const owned = ownedStreamsData();
+      const other = state.streams.filter((stream) => stream.user_id !== CURRENT_USER_ID);
+
+      if (owned.length === 0) {
+        ownedStreams.append(createEmptyState("No owned streams yet."));
+      } else {
+        for (const stream of owned) {
+          ownedStreams.append(createStreamItem(stream, true));
+        }
+      }
+
+      if (other.length === 0) {
+        otherStreams.append(createEmptyState("No other streams available."));
+      } else {
+        for (const stream of other) {
+          otherStreams.append(createStreamItem(stream, false));
+        }
+      }
+    }
+
+    function createStreamItem(stream, isOwned) {
+      const item = document.createElement("div");
+      item.className = "stream-item";
+
+      const meta = document.createElement("div");
+      meta.className = "stream-meta";
+
+      const name = document.createElement("p");
+      name.className = "stream-name";
+      name.textContent = `${stream.emoji} ${stream.name}`;
+
+      const owner = document.createElement("p");
+      owner.className = "stream-owner";
+      owner.textContent = `by ${stream.owner_username}`;
+
+      meta.append(name, owner);
+
+      if (stream.description) {
+        const description = document.createElement("p");
+        description.className = "stream-description";
+        description.textContent = stream.description;
+        meta.append(description);
+      }
+
+      item.append(meta);
+
+      if (isOwned) {
+        const badge = document.createElement("button");
+        badge.className = "subscribe-button";
+        badge.textContent = "Owned";
+        badge.disabled = true;
+        item.append(badge);
+        return item;
+      }
+
+      const subscribed = state.subscriptions.has(stream.id);
+      const button = document.createElement("button");
+      button.className = "subscribe-button";
+      button.textContent = subscribed ? "Subscribed" : "Subscribe";
+      button.disabled = subscribed;
+
+      if (!subscribed) {
+        button.addEventListener("click", async () => {
+          button.disabled = true;
+          button.textContent = "Subscribing...";
+          try {
+            await subscribeToStream(stream.id);
+          } catch (error) {
+            console.error(error);
+            alert("Could not subscribe to stream.");
+            button.disabled = false;
+            button.textContent = "Subscribe";
+          }
+        });
+      }
+
+      item.append(button);
+      return item;
+    }
+
+    function renderPostSelector() {
+      streamSelect.innerHTML = "";
+      const streams = postableStreams();
+
+      for (const stream of streams) {
+        const option = document.createElement("option");
+        option.value = String(stream.id);
+        option.textContent = `${stream.emoji} ${stream.name}`;
+        streamSelect.append(option);
+      }
+
+      postButton.disabled = streams.length === 0;
+      streamSelect.disabled = streams.length === 0;
+
+      if (streams.length === 0) {
+        const option = document.createElement("option");
+        option.textContent = "No owned streams";
+        streamSelect.append(option);
+      }
+    }
+
+    function renderFilters() {
+      filterList.innerHTML = "";
+      const streams = availableStreamsForUser();
+
+      if (streams.length === 0) {
+        filterList.append(createEmptyState("Subscribed streams will appear here."));
+        return;
+      }
+
+      for (const stream of streams) {
+        const label = document.createElement("label");
+        label.className = "filter-item";
+
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = state.filterEnabled.has(stream.id);
+        input.addEventListener("change", () => {
+          if (input.checked) {
+            state.filterEnabled.add(stream.id);
+          } else {
+            state.filterEnabled.delete(stream.id);
+          }
+          renderPosts();
+        });
+
+        const swatch = document.createElement("span");
+        swatch.className = "filter-swatch";
+        swatch.style.background = stream.color;
+
+        const text = document.createElement("span");
+        text.textContent = `${stream.emoji} ${stream.name}`;
+
+        label.append(input, swatch, text);
+        filterList.append(label);
+      }
+    }
+
+    function popupContent(post) {
+      const stream = post.stream;
+      const title = `${stream.emoji} ${stream.name}`;
+      const text = post.text || "(no text)";
+
+      return `
+        <div>
+          <p class="popup-title" style="color: ${stream.color}">${title}</p>
+          <p class="popup-text">${text}</p>
+        </div>
+      `;
+    }
+
+    function markerIcon(post) {
+      return L.divIcon({
+        className: "",
+        html: `
+          <div
+            class="stream-marker"
+            style="background: ${post.stream.color};"
+            title="${post.stream.name}"
+          >
+            ${post.stream.emoji}
+          </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+        popupAnchor: [0, -16]
+      });
+    }
+
+    function renderPosts() {
+      markersLayer.clearLayers();
+      const bounds = [];
+      const visiblePosts = state.posts.filter((post) =>
+        state.filterEnabled.has(post.stream.id)
+      );
+
+      for (const post of visiblePosts) {
+        const marker = L.marker([post.lat, post.lon], {
+          icon: markerIcon(post)
+        });
+        marker.bindPopup(popupContent(post));
+        marker.addTo(markersLayer);
+        bounds.push([post.lat, post.lon]);
+      }
+
+      if (bounds.length > 0) {
+        map.fitBounds(bounds, { padding: [32, 32] });
+      }
+    }
+
+    function renderAll() {
+      syncFilterSet();
+      renderDiscoveryLists();
+      renderPostSelector();
+      renderFilters();
+      renderPosts();
+    }
+
+    function getCurrentPosition() {
+      return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000
+        });
+      });
+    }
+
+    async function handlePost() {
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported in this browser.");
+        return;
+      }
+
+      if (!streamSelect.value) {
+        alert("Select a stream first.");
+        return;
+      }
+
+      const text = window.prompt("Post text");
+      if (text === null) {
+        return;
+      }
+
+      postButton.disabled = true;
+      postButton.textContent = "Posting...";
+
+      try {
+        const position = await getCurrentPosition();
+        await createPost({
+          stream_id: Number(streamSelect.value),
+          lat: position.coords.latitude,
+          lon: position.coords.longitude,
+          text
+        });
+      } catch (error) {
+        console.error(error);
+        alert("Could not create post.");
+      } finally {
+        renderPostSelector();
+        postButton.textContent = "Post";
+      }
+    }
+
+    function openPanel() {
+      sidePanel.classList.add("is-open");
+      sidePanel.setAttribute("aria-hidden", "false");
+      panelBackdrop.hidden = false;
+    }
+
+    function closePanel() {
+      sidePanel.classList.remove("is-open");
+      sidePanel.setAttribute("aria-hidden", "true");
+      panelBackdrop.hidden = true;
+    }
+
+    function openStreamModal() {
+      streamForm.reset();
+      streamColor.value = STREAM_COLORS[0];
+      streamEmoji.value = STREAM_EMOJIS[0];
+      streamModal.hidden = false;
+      modalBackdrop.hidden = false;
+      streamName.focus();
+    }
+
+    function closeStreamModal() {
+      streamModal.hidden = true;
+      modalBackdrop.hidden = true;
+      modalSubmit.disabled = false;
+      modalSubmit.textContent = "Create";
+    }
+
+    async function handleCreateStream(event) {
+      event.preventDefault();
+      modalSubmit.disabled = true;
+      modalSubmit.textContent = "Creating...";
+
+      try {
+        await createStream({
+          name: streamName.value.trim(),
+          description: streamDescription.value.trim(),
+          color: streamColor.value,
+          emoji: streamEmoji.value
+        });
+        closeStreamModal();
+      } catch (error) {
+        console.error(error);
+        alert("Could not create stream.");
+        modalSubmit.disabled = false;
+        modalSubmit.textContent = "Create";
+      }
+    }
+
+    async function init() {
+      populateModalOptions();
+      setActiveTab("streams");
+
+      try {
+        await loadAppData();
+      } catch (error) {
+        console.error(error);
+        alert("Could not load app data.");
+      }
+    }
+
+    panelToggle.addEventListener("click", openPanel);
+    panelClose.addEventListener("click", closePanel);
+    panelBackdrop.addEventListener("click", closePanel);
+    streamsTab.addEventListener("click", () => setActiveTab("streams"));
+    filterTab.addEventListener("click", () => setActiveTab("filter"));
+    newStreamButton.addEventListener("click", openStreamModal);
+    modalCancel.addEventListener("click", closeStreamModal);
+    modalBackdrop.addEventListener("click", closeStreamModal);
+    streamForm.addEventListener("submit", handleCreateStream);
+    postButton.addEventListener("click", handlePost);
+
+    init();
+  </script>
+</body>
+</html>
