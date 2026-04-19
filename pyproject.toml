@@ -1,0 +1,7 @@
+[project]
+name = "htae"
+version = "0.1.0"
+description = "Location based Simple SNS system for PLATEAU lecture"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
