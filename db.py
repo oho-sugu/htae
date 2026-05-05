@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import sqlite3
 from pathlib import Path
 
@@ -9,6 +10,10 @@ DATABASE_PATH = BASE_DIR / "app.db"
 SCHEMA_PATH = BASE_DIR / "schema.sql"
 GEOHASH_ALPHABET = "0123456789bcdefghjkmnpqrstuvwxyz"
 GEOHASH_INDEX = {char: index for index, char in enumerate(GEOHASH_ALPHABET)}
+
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
 
 def get_connection() -> sqlite3.Connection:
@@ -118,6 +123,7 @@ def geohash_neighbors(geohash: str) -> list[str]:
 
 
 def seed_data(connection: sqlite3.Connection) -> None:
+    demo_hash = hash_password("demo")
     user = connection.execute(
         "SELECT id FROM users WHERE username = ?",
         ("demo",),
@@ -126,11 +132,19 @@ def seed_data(connection: sqlite3.Connection) -> None:
     if user is None:
         cursor = connection.execute(
             "INSERT INTO users (username, password_hash) VALUES (?, ?)",
-            ("demo", "demo"),
+            ("demo", demo_hash),
         )
         user_id = cursor.lastrowid
     else:
         user_id = user["id"]
+        connection.execute(
+            """
+            UPDATE users
+            SET password_hash = ?
+            WHERE id = ? AND password_hash != ?
+            """,
+            (demo_hash, user_id, demo_hash),
+        )
 
     stream = connection.execute(
         "SELECT id FROM streams WHERE id = 1"
@@ -158,11 +172,19 @@ def seed_data(connection: sqlite3.Connection) -> None:
     if other_user is None:
         cursor = connection.execute(
             "INSERT INTO users (username, password_hash) VALUES (?, ?)",
-            ("alice", "demo"),
+            ("alice", demo_hash),
         )
         other_user_id = cursor.lastrowid
     else:
         other_user_id = other_user["id"]
+        connection.execute(
+            """
+            UPDATE users
+            SET password_hash = ?
+            WHERE id = ? AND password_hash != ?
+            """,
+            (demo_hash, other_user_id, demo_hash),
+        )
 
     other_stream = connection.execute(
         "SELECT id FROM streams WHERE user_id = ? AND name = ?",

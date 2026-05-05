@@ -22,6 +22,17 @@
       color: #1f2937;
     }
 
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    .app-shell[hidden] {
+      display: none;
+    }
+
     .layout {
       display: grid;
       grid-template-rows: auto 1fr;
@@ -54,11 +65,25 @@
       color: #4b5563;
     }
 
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-badge {
+      font-size: 14px;
+      font-weight: 700;
+      color: #111827;
+    }
+
     .panel-toggle,
     .new-stream-button,
     .subscribe-button,
     .modal-submit,
-    .modal-cancel {
+    .modal-cancel,
+    .auth-submit,
+    .logout-button {
       border: 0;
       border-radius: 10px;
       padding: 10px 12px;
@@ -95,6 +120,92 @@
     .modal-cancel {
       background: #e5e7eb;
       color: #111827;
+    }
+
+    .logout-button {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .auth-screen {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      box-sizing: border-box;
+      background:
+        radial-gradient(circle at top, rgba(52, 152, 219, 0.18), transparent 32%),
+        linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
+    }
+
+    .auth-screen[hidden] {
+      display: none;
+    }
+
+    .auth-card {
+      width: min(420px, 100%);
+      padding: 24px;
+      border: 1px solid #dbe2ea;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 20px 48px rgba(17, 24, 39, 0.12);
+    }
+
+    .auth-title {
+      margin: 0;
+      font-size: 28px;
+    }
+
+    .auth-copy {
+      margin: 8px 0 0;
+      color: #4b5563;
+      font-size: 14px;
+    }
+
+    .auth-field {
+      margin-top: 14px;
+    }
+
+    .auth-field label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #374151;
+    }
+
+    .auth-field input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      background: #ffffff;
+      color: #111827;
+      padding: 12px;
+    }
+
+    .auth-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .auth-submit {
+      background: #111827;
+      color: #ffffff;
+    }
+
+    .auth-submit.secondary {
+      background: #e5eefb;
+      color: #1d4ed8;
+    }
+
+    .auth-error {
+      min-height: 20px;
+      margin-top: 12px;
+      color: #b91c1c;
+      font-size: 13px;
     }
 
     .side-panel {
@@ -392,18 +503,46 @@
   </style>
 </head>
 <body>
-  <div class="layout">
-    <header class="header">
-      <div class="header-copy">
-        <h1>HTAE</h1>
-        <p>Simple GIS-based SNS viewer</p>
+  <section id="auth-screen" class="auth-screen" hidden>
+    <div class="auth-card">
+      <h1 class="auth-title">HTAE</h1>
+      <p class="auth-copy">Create an account or log in to use the map.</p>
+      <form id="auth-form">
+        <div class="auth-field">
+          <label for="auth-username">Username</label>
+          <input id="auth-username" name="username" type="text" autocomplete="username" required>
+        </div>
+        <div class="auth-field">
+          <label for="auth-password">Password</label>
+          <input id="auth-password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <div class="auth-actions">
+          <button id="login-button" class="auth-submit" type="submit">Login</button>
+          <button id="create-account-button" class="auth-submit secondary" type="button">Create Account</button>
+        </div>
+        <p id="auth-error" class="auth-error" role="alert"></p>
+      </form>
+    </div>
+  </section>
+
+  <div id="app-shell" class="app-shell" hidden>
+    <div class="layout">
+      <header class="header">
+        <div class="header-copy">
+          <h1>HTAE</h1>
+          <p>Simple GIS-based SNS viewer</p>
+        </div>
+        <div class="header-actions">
+          <span id="user-badge" class="user-badge"></span>
+          <button id="logout-button" class="logout-button" type="button">Logout</button>
+          <button id="panel-toggle" class="panel-toggle" type="button">☰ Filter</button>
+        </div>
+      </header>
+      <main id="map"></main>
+      <div class="post-controls">
+        <select id="stream-select" class="stream-select" aria-label="Select stream"></select>
+        <button id="post-button" class="post-button" type="button">Post</button>
       </div>
-      <button id="panel-toggle" class="panel-toggle" type="button">☰ Filter</button>
-    </header>
-    <main id="map"></main>
-    <div class="post-controls">
-      <select id="stream-select" class="stream-select" aria-label="Select stream"></select>
-      <button id="post-button" class="post-button" type="button">Post</button>
     </div>
   </div>
 
@@ -478,7 +617,6 @@
     crossorigin=""
   ></script>
   <script>
-    const CURRENT_USER_ID = 1;
     const STREAM_COLORS = [
       "#e74c3c",
       "#3498db",
@@ -492,6 +630,8 @@
     const STREAM_EMOJIS = ["☕", "🍜", "🌳", "📍", "⭐", "🏠", "🛒", "📷", "🎉"];
 
     const state = {
+      currentUserId: null,
+      currentUsername: "",
       streams: [],
       subscriptions: new Set(),
       filterEnabled: new Set(),
@@ -499,6 +639,16 @@
       activeTab: "streams"
     };
 
+    const authScreen = document.getElementById("auth-screen");
+    const appShell = document.getElementById("app-shell");
+    const authForm = document.getElementById("auth-form");
+    const authUsername = document.getElementById("auth-username");
+    const authPassword = document.getElementById("auth-password");
+    const loginButton = document.getElementById("login-button");
+    const createAccountButton = document.getElementById("create-account-button");
+    const authError = document.getElementById("auth-error");
+    const userBadge = document.getElementById("user-badge");
+    const logoutButton = document.getElementById("logout-button");
     const map = L.map("map").setView([35.68, 139.76], 12);
     const markersLayer = L.layerGroup().addTo(map);
     const postButton = document.getElementById("post-button");
@@ -530,6 +680,69 @@
       attribution: "&copy; OpenStreetMap contributors"
     }).addTo(map);
 
+    function currentUserId() {
+      if (typeof state.currentUserId !== "number") {
+        throw new Error("Missing user_id");
+      }
+
+      return state.currentUserId;
+    }
+
+    function setAuthError(message) {
+      authError.textContent = message || "";
+    }
+
+    function setAuthState(userId, username) {
+      state.currentUserId = userId;
+      state.currentUsername = username;
+      localStorage.setItem("user_id", String(userId));
+      localStorage.setItem("username", username);
+    }
+
+    function clearAppState() {
+      state.streams = [];
+      state.subscriptions = new Set();
+      state.filterEnabled = new Set();
+      state.posts = [];
+      state.activeTab = "streams";
+      markersLayer.clearLayers();
+      ownedStreams.innerHTML = "";
+      otherStreams.innerHTML = "";
+      filterList.innerHTML = "";
+      streamSelect.innerHTML = "";
+      closePanel();
+      closeStreamModal();
+    }
+
+    function showAuthScreen() {
+      authScreen.hidden = false;
+      appShell.hidden = true;
+      userBadge.textContent = "";
+      authForm.reset();
+      setAuthError("");
+      authUsername.focus();
+    }
+
+    function showApp() {
+      authScreen.hidden = true;
+      appShell.hidden = false;
+      userBadge.textContent = state.currentUsername;
+      map.invalidateSize();
+    }
+
+    function logout({ confirmLogout = true } = {}) {
+      if (confirmLogout && !window.confirm("Log out now?")) {
+        return;
+      }
+
+      localStorage.removeItem("user_id");
+      localStorage.removeItem("username");
+      state.currentUserId = null;
+      state.currentUsername = "";
+      clearAppState();
+      showAuthScreen();
+    }
+
     function populateModalOptions() {
       for (const color of STREAM_COLORS) {
         const option = document.createElement("option");
@@ -548,15 +761,102 @@
 
     async function fetchJson(url, options) {
       const response = await fetch(url, options);
-      if (!response.ok) {
-        throw new Error(`Request failed: ${response.status}`);
+      let payload = null;
+
+      try {
+        payload = await response.json();
+      } catch (error) {
+        payload = null;
       }
 
-      return response.json();
+      if (!response.ok) {
+        const error = new Error(payload?.detail || `Request failed: ${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
+
+      return payload;
+    }
+
+    function buildUrl(path, params = {}) {
+      const url = new URL(path, window.location.origin);
+
+      for (const [key, value] of Object.entries(params)) {
+        if (value !== undefined && value !== null && value !== "") {
+          url.searchParams.set(key, String(value));
+        }
+      }
+
+      return url.pathname + url.search;
+    }
+
+    async function apiGet(path, params = {}) {
+      try {
+        return await fetchJson(buildUrl(path, { user_id: currentUserId(), ...params }));
+      } catch (error) {
+        if (error.status === 401) {
+          logout({ confirmLogout: false });
+        }
+        throw error;
+      }
+    }
+
+    async function apiPost(path, body) {
+      try {
+        return await fetchJson(path, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            user_id: currentUserId(),
+            ...body
+          })
+        });
+      } catch (error) {
+        if (error.status === 401) {
+          logout({ confirmLogout: false });
+        }
+        throw error;
+      }
+    }
+
+    async function authenticate(path) {
+      setAuthError("");
+      loginButton.disabled = true;
+      createAccountButton.disabled = true;
+
+      try {
+        const result = await fetchJson(path, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            username: authUsername.value.trim(),
+            password: authPassword.value
+          })
+        });
+        setAuthState(result.user_id, result.username || authUsername.value.trim());
+        await loadAppData();
+        showApp();
+      } catch (error) {
+        console.error(error);
+        localStorage.removeItem("user_id");
+        localStorage.removeItem("username");
+        state.currentUserId = null;
+        state.currentUsername = "";
+        clearAppState();
+        showAuthScreen();
+        setAuthError(error.message || "Authentication failed.");
+      } finally {
+        loginButton.disabled = false;
+        createAccountButton.disabled = false;
+      }
     }
 
     function ownedStreamsData() {
-      return state.streams.filter((stream) => stream.user_id === CURRENT_USER_ID);
+      return state.streams.filter((stream) => stream.user_id === currentUserId());
     }
 
     function postableStreams() {
@@ -566,7 +866,7 @@
     function availableStreamsForUser() {
       return state.streams.filter(
         (stream) =>
-          stream.user_id === CURRENT_USER_ID || state.subscriptions.has(stream.id)
+          stream.user_id === currentUserId() || state.subscriptions.has(stream.id)
       );
     }
 
@@ -582,9 +882,9 @@
 
     async function loadAppData() {
       const [streams, subscriptions, posts] = await Promise.all([
-        fetchJson("/streams"),
-        fetchJson("/subscriptions"),
-        fetchJson("/posts")
+        apiGet("/streams"),
+        apiGet("/subscriptions"),
+        apiGet("/posts")
       ]);
 
       state.streams = streams;
@@ -596,25 +896,13 @@
     }
 
     async function createPost(payload) {
-      await fetchJson("/posts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
-      state.posts = await fetchJson("/posts");
+      await apiPost("/posts", payload);
+      state.posts = await apiGet("/posts");
       renderPosts();
     }
 
     async function subscribeToStream(streamId) {
-      await fetchJson("/subscriptions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ stream_id: streamId })
-      });
+      await apiPost("/subscriptions", { stream_id: streamId });
 
       state.subscriptions.add(streamId);
       state.filterEnabled.add(streamId);
@@ -622,13 +910,7 @@
     }
 
     async function createStream(payload) {
-      const stream = await fetchJson("/streams", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
+      const stream = await apiPost("/streams", payload);
 
       state.streams.push(stream);
       state.subscriptions.add(stream.id);
@@ -657,7 +939,7 @@
       otherStreams.innerHTML = "";
 
       const owned = ownedStreamsData();
-      const other = state.streams.filter((stream) => stream.user_id !== CURRENT_USER_ID);
+      const other = state.streams.filter((stream) => stream.user_id !== currentUserId());
 
       if (owned.length === 0) {
         ownedStreams.append(createEmptyState("No owned streams yet."));
@@ -951,15 +1233,43 @@
     async function init() {
       populateModalOptions();
       setActiveTab("streams");
+      const storedUserId = Number(localStorage.getItem("user_id"));
+      const storedUsername = localStorage.getItem("username") || "";
 
-      try {
-        await loadAppData();
-      } catch (error) {
-        console.error(error);
-        alert("Could not load app data.");
+      if (Number.isInteger(storedUserId) && storedUserId > 0) {
+        state.currentUserId = storedUserId;
+        state.currentUsername = storedUsername;
+        showApp();
+
+        try {
+          await loadAppData();
+          if (!state.currentUsername) {
+            userBadge.textContent = `User #${state.currentUserId}`;
+          }
+          return;
+        } catch (error) {
+          console.error(error);
+          if (error.status === 401) {
+            return;
+          }
+          if (error.status !== 401) {
+            alert("Could not load app data.");
+          }
+          return;
+        }
       }
+
+      showAuthScreen();
     }
 
+    authForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await authenticate("/login");
+    });
+    createAccountButton.addEventListener("click", async () => {
+      await authenticate("/users");
+    });
+    logoutButton.addEventListener("click", () => logout());
     panelToggle.addEventListener("click", openPanel);
     panelClose.addEventListener("click", closePanel);
     panelBackdrop.addEventListener("click", closePanel);

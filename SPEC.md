@@ -176,6 +176,33 @@ WHERE geohash IN (?, ?, ..., ?);
 
 ### 6.1 Auth
 
+#### POST /users
+
+Request:
+
+```json
+{
+  "username": "user1",
+  "password": "plain"
+}
+```
+
+Behavior:
+
+* Hash password before storing
+* Create user in `users`
+
+Response:
+
+```json
+{
+  "user_id": 1,
+  "username": "user1"
+}
+```
+
+---
+
 #### POST /login
 
 Request:
@@ -191,7 +218,8 @@ Response:
 
 ```json
 {
-  "user_id": 1
+  "user_id": 1,
+  "username": "user1"
 }
 ```
 
@@ -201,7 +229,16 @@ Response:
 
 ### GET /streams
 
-Return all streams
+Query:
+
+```
+user_id=...
+```
+
+Behavior:
+
+* Require `user_id`
+* Return all streams with owner information
 
 ---
 
@@ -211,6 +248,7 @@ Request:
 
 ```json
 {
+  "user_id": 1,
   "name": "Cafe",
   "description": "Coffee spots",
   "color": "#e74c3c",
@@ -230,6 +268,12 @@ Return stream info
 
 ### GET /subscriptions
 
+Query:
+
+```
+user_id=...
+```
+
 Return subscribed stream IDs
 
 ---
@@ -238,6 +282,7 @@ Return subscribed stream IDs
 
 ```json
 {
+  "user_id": 1,
   "stream_id": 1
 }
 ```
@@ -250,6 +295,7 @@ Return subscribed stream IDs
 
 ```json
 {
+  "user_id": 1,
   "stream_id": 1,
   "lat": 35.68,
   "lon": 139.76,
@@ -275,8 +321,9 @@ lon=...
 
 Behavior:
 
+* Require `user_id`
 * Compute geohash neighbors
-* Return matching posts
+* Return matching posts from owned or subscribed streams only
 
 Response:
 
@@ -309,6 +356,12 @@ Return all posts for stream
 
 ### GET /streams/{id}/export
 
+Query:
+
+```
+user_id=...
+```
+
 Response:
 
 ```json
@@ -338,9 +391,17 @@ Response:
 ### Layout
 
 * Top-left: Filter button (☰)
-* Top-right: Login Function, When user not login: login button, user logged in: user name and logout button
+* Top-right: When user not logged in, show login screen; when logged in, show username and logout button
 * Main: Map
 * Bottom-right: Post button
+
+### Auth UI
+
+* Login screen with `username` and `password`
+* Buttons: `Login`, `Create Account`
+* Save login state with `localStorage.user_id`
+* Save username for display
+* Logout removes `localStorage.user_id` and returns to login screen
 
 ---
 

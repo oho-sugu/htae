@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+import hashlib
 from pathlib import Path
+import sqlite3
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
@@ -10,12 +12,38 @@ from pydantic import BaseModel, field_validator
 
 from db import encode_geohash, geohash_neighbors, get_connection, init_db
 
-
-DEMO_USER_ID = 1
 BASE_DIR = Path(__file__).resolve().parent
 
 
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+
+
+def require_user(connection, user_id: int):
+    user = connection.execute(
+        "SELECT id, username FROM users WHERE id = ?",
+        (user_id,),
+    ).fetchone()
+    if user is None:
+        raise HTTPException(status_code=401, detail="Invalid user_id")
+    return user
+
+
+class Credentials(BaseModel):
+    username: str
+    password: str
+
+    @field_validator("username", "password")
+    @classmethod
+    def validate_required_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("field must not be empty")
+        return value
+
+
 class StreamCreate(BaseModel):
+    user_id: int
     name: str
     description: str | None = None
     color: str
@@ -39,10 +67,12 @@ class StreamCreate(BaseModel):
 
 
 class SubscriptionCreate(BaseModel):
+    user_id: int
     stream_id: int
 
 
 class PostCreate(BaseModel):
+    user_id: int
     stream_id: int
     lat: float
     lon: float
@@ -77,9 +107,47 @@ def index():
     return FileResponse(BASE_DIR / "index.html")
 
 
-@app.get("/streams")
-def list_streams():
+@app.post("/users")
+def create_user(payload: Credentials):
+    password_hash = hash_password(payload.password)
+
     with get_connection() as connection:
+        try:
+            cursor = connection.execute(
+                """
+                INSERT INTO users (username, password_hash)
+                VALUES (?, ?)
+                """,
+                (payload.username, password_hash),
+            )
+        except sqlite3.IntegrityError as error:
+            raise HTTPException(status_code=409, detail="Username already exists") from error
+
+    return {"user_id": cursor.lastrowid, "username": payload.username}
+
+
+@app.post("/login")
+def login(payload: Credentials):
+    with get_connection() as connection:
+        user = connection.execute(
+            """
+            SELECT id, username, password_hash
+            FROM users
+            WHERE username = ?
+            """,
+            (payload.username,),
+        ).fetchone()
+
+    if user is None or user["password_hash"] != hash_password(payload.password):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    return {"user_id": user["id"], "username": user["username"]}
+
+
+@app.get("/streams")
+def list_streams(user_id: int):
+    with get_connection() as connection:
+        require_user(connection, user_id)
         rows = connection.execute(
             """
             SELECT
@@ -102,13 +170,14 @@ def list_streams():
 @app.post("/streams")
 def create_stream(payload: StreamCreate):
     with get_connection() as connection:
+        require_user(connection, payload.user_id)
         cursor = connection.execute(
             """
             INSERT INTO streams (user_id, name, description, color, emoji)
             VALUES (?, ?, ?, ?, ?)
             """,
             (
-                DEMO_USER_ID,
+                payload.user_id,
                 payload.name,
                 payload.description,
                 payload.color,
@@ -118,7 +187,7 @@ def create_stream(payload: StreamCreate):
         stream_id = cursor.lastrowid
         connection.execute(
             "INSERT OR IGNORE INTO subscriptions (user_id, stream_id) VALUES (?, ?)",
-            (DEMO_USER_ID, stream_id),
+            (payload.user_id, stream_id),
         )
         row = connection.execute(
             """
@@ -141,8 +210,9 @@ def create_stream(payload: StreamCreate):
 
 
 @app.get("/subscriptions")
-def list_subscriptions():
+def list_subscriptions(user_id: int):
     with get_connection() as connection:
+        require_user(connection, user_id)
         rows = connection.execute(
             """
             SELECT stream_id
@@ -150,7 +220,7 @@ def list_subscriptions():
             WHERE user_id = ?
             ORDER BY stream_id ASC
             """,
-            (DEMO_USER_ID,),
+            (user_id,),
         ).fetchall()
 
     return [row["stream_id"] for row in rows]
@@ -159,6 +229,7 @@ def list_subscriptions():
 @app.post("/subscriptions")
 def create_subscription(payload: SubscriptionCreate):
     with get_connection() as connection:
+        require_user(connection, payload.user_id)
         stream = connection.execute(
             "SELECT id FROM streams WHERE id = ?",
             (payload.stream_id,),
@@ -171,15 +242,16 @@ def create_subscription(payload: SubscriptionCreate):
             INSERT OR IGNORE INTO subscriptions (user_id, stream_id)
             VALUES (?, ?)
             """,
-            (DEMO_USER_ID, payload.stream_id),
+            (payload.user_id, payload.stream_id),
         )
 
     return {"stream_id": payload.stream_id}
 
 
 @app.get("/streams/{stream_id}/export")
-def export_stream(stream_id: int):
+def export_stream(stream_id: int, user_id: int):
     with get_connection() as connection:
+        require_user(connection, user_id)
         stream = connection.execute(
             "SELECT id FROM streams WHERE id = ?",
             (stream_id,),
@@ -209,6 +281,7 @@ def create_post(payload: PostCreate):
     geohash = encode_geohash(payload.lat, payload.lon, precision=6)
 
     with get_connection() as connection:
+        require_user(connection, payload.user_id)
         stream = connection.execute(
             """
             SELECT
@@ -221,7 +294,7 @@ def create_post(payload: PostCreate):
         ).fetchone()
         if stream is None:
             raise HTTPException(status_code=404, detail="Stream not found")
-        if stream["user_id"] != DEMO_USER_ID:
+        if stream["user_id"] != payload.user_id:
             raise HTTPException(
                 status_code=403,
                 detail="You can only post to your own streams",
@@ -233,7 +306,7 @@ def create_post(payload: PostCreate):
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                DEMO_USER_ID,
+                payload.user_id,
                 payload.stream_id,
                 payload.lat,
                 payload.lon,
@@ -265,7 +338,7 @@ def create_post(payload: PostCreate):
 
 
 @app.get("/posts")
-def list_posts(lat: float | None = None, lon: float | None = None):
+def list_posts(user_id: int, lat: float | None = None, lon: float | None = None):
     if (lat is None) != (lon is None):
         raise HTTPException(status_code=400, detail="lat and lon must be provided together")
 
@@ -287,19 +360,26 @@ def list_posts(lat: float | None = None, lon: float | None = None):
           s.emoji AS stream_emoji
         FROM posts AS p
         JOIN streams AS s ON s.id = p.stream_id
+        LEFT JOIN subscriptions AS sub
+          ON sub.stream_id = s.id
+         AND sub.user_id = ?
     """
-    parameters: list[str | float] = []
+    parameters: list[int | str | float] = [user_id]
+    filters = ["(s.user_id = ? OR sub.user_id IS NOT NULL)"]
+    parameters.append(user_id)
 
     if lat is not None and lon is not None:
         center_geohash = encode_geohash(lat, lon, precision=6)
         target_geohashes = geohash_neighbors(center_geohash)
         placeholders = ", ".join("?" for _ in target_geohashes)
-        query += f" WHERE p.geohash IN ({placeholders})"
+        filters.append(f"p.geohash IN ({placeholders})")
         parameters.extend(target_geohashes)
 
+    query += " WHERE " + " AND ".join(filters)
     query += " ORDER BY p.id DESC"
 
     with get_connection() as connection:
+        require_user(connection, user_id)
         rows = connection.execute(query, parameters).fetchall()
 
     return [serialize_post(row) for row in rows]
