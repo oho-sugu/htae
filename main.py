@@ -7,7 +7,7 @@ from pathlib import Path
 import sqlite3
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, field_validator
 
 from db import encode_geohash, geohash_neighbors, get_connection, init_db
@@ -253,7 +253,11 @@ def export_stream(stream_id: int, user_id: int):
     with get_connection() as connection:
         require_user(connection, user_id)
         stream = connection.execute(
-            "SELECT id FROM streams WHERE id = ?",
+            """
+            SELECT id, name
+            FROM streams
+            WHERE id = ?
+            """,
             (stream_id,),
         ).fetchone()
         if stream is None:
@@ -261,18 +265,39 @@ def export_stream(stream_id: int, user_id: int):
 
         rows = connection.execute(
             """
-            SELECT id, user_id, lat, lon, text, created_at
-            FROM posts
-            WHERE stream_id = ?
-            ORDER BY id ASC
+            SELECT
+              p.id,
+              p.user_id,
+              p.lat,
+              p.lon,
+              p.text,
+              p.created_at,
+              u.username
+            FROM posts AS p
+            JOIN users AS u ON u.id = p.user_id
+            WHERE p.stream_id = ?
+            ORDER BY p.id ASC
             """,
             (stream_id,),
         ).fetchall()
 
-    return {
-        "type": "FeatureCollection",
-        "features": [serialize_geojson_feature(row) for row in rows],
-    }
+    safe_stream_name = "".join(
+        char if char.isalnum() or char in ("-", "_") else "_"
+        for char in stream["name"]
+    ).strip("_")
+    filename = f'stream_{stream_id}.geojson'
+    if safe_stream_name:
+        filename = f'stream_{stream_id}_{safe_stream_name}.geojson'
+
+    return JSONResponse(
+        content={
+            "type": "FeatureCollection",
+            "features": [serialize_geojson_feature(row) for row in rows],
+        },
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        },
+    )
 
 
 @app.post("/posts")
@@ -420,8 +445,10 @@ def serialize_geojson_feature(row) -> dict:
             "coordinates": [row["lon"], row["lat"]],
         },
         "properties": {
+            "id": row["id"],
             "user_id": row["user_id"],
             "text": row["text"],
-            "timestamp": row["created_at"],
+            "created_at": row["created_at"],
+            "username": row["username"],
         },
     }

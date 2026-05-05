@@ -375,9 +375,11 @@ Response:
         "coordinates": [139.76, 35.68]
       },
       "properties": {
+        "id": 1,
         "user_id": 1,
         "text": "hello",
-        "timestamp": "..."
+        "created_at": "...",
+        "username": "user1"
       }
     }
   ]
@@ -431,6 +433,9 @@ Response:
 ## 7.3 Map Rendering
 
 * Use Leaflet
+* On first load, try browser geolocation once
+* If geolocation succeeds, center map on current location with closer zoom
+* If geolocation is denied or fails, keep default map location
 * Each post rendered as marker
 * Style:
 

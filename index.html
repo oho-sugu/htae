@@ -43,8 +43,7 @@
     .header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+      gap: 8px;
       padding: 12px 16px;
       background: #ffffff;
       border-bottom: 1px solid #dbe2ea;
@@ -52,6 +51,7 @@
 
     .header-copy {
       min-width: 0;
+      margin-right: auto;
     }
 
     .header h1 {
@@ -105,16 +105,28 @@
       color: #1d4ed8;
     }
 
+    .export-button,
+    .subscribe-button {
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+
     .subscribe-button {
       background: #111827;
       color: #ffffff;
-      padding: 8px 10px;
-      font-size: 13px;
     }
 
     .subscribe-button[disabled] {
       opacity: 0.6;
       cursor: default;
+    }
+
+    .export-button {
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      background: #ffffff;
+      color: #111827;
+      cursor: pointer;
     }
 
     .modal-cancel {
@@ -311,6 +323,13 @@
       border: 1px solid #e5e7eb;
       border-radius: 14px;
       background: #f9fafb;
+    }
+
+    .stream-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
     }
 
     .stream-meta {
@@ -528,6 +547,7 @@
   <div id="app-shell" class="app-shell" hidden>
     <div class="layout">
       <header class="header">
+        <button id="panel-toggle" class="panel-toggle" type="button">☰</button>
         <div class="header-copy">
           <h1>HTAE</h1>
           <p>Simple GIS-based SNS viewer</p>
@@ -535,7 +555,6 @@
         <div class="header-actions">
           <span id="user-badge" class="user-badge"></span>
           <button id="logout-button" class="logout-button" type="button">Logout</button>
-          <button id="panel-toggle" class="panel-toggle" type="button">☰ Filter</button>
         </div>
       </header>
       <main id="map"></main>
@@ -756,6 +775,21 @@
         option.value = emoji;
         option.textContent = emoji;
         streamEmoji.append(option);
+      }
+    }
+
+    async function initializeMapLocation() {
+      if (!navigator.geolocation) {
+        return;
+      }
+
+      try {
+        const position = await getCurrentPosition();
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        map.setView([lat, lon], 15);
+      } catch (error) {
+        console.log("Geolocation failed:", error);
       }
     }
 
@@ -984,12 +1018,28 @@
 
       item.append(meta);
 
+      const actions = document.createElement("div");
+      actions.className = "stream-actions";
+
+      const exportButton = document.createElement("button");
+      exportButton.className = "export-button";
+      exportButton.type = "button";
+      exportButton.textContent = "Export";
+      exportButton.addEventListener("click", () => {
+        window.open(
+          `/streams/${stream.id}/export?user_id=${encodeURIComponent(currentUserId())}`,
+          "_blank"
+        );
+      });
+      actions.append(exportButton);
+
       if (isOwned) {
         const badge = document.createElement("button");
         badge.className = "subscribe-button";
         badge.textContent = "Owned";
         badge.disabled = true;
-        item.append(badge);
+        actions.append(badge);
+        item.append(actions);
         return item;
       }
 
@@ -1014,7 +1064,8 @@
         });
       }
 
-      item.append(button);
+      actions.append(button);
+      item.append(actions);
       return item;
     }
 
@@ -1232,6 +1283,7 @@
 
     async function init() {
       populateModalOptions();
+      initializeMapLocation();
       setActiveTab("streams");
       const storedUserId = Number(localStorage.getItem("user_id"));
       const storedUsername = localStorage.getItem("username") || "";
