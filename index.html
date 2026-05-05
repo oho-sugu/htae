@@ -14,11 +14,37 @@
     :root {
       color-scheme: light;
       font-family: sans-serif;
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-soft: #f9fafb;
+      --surface-muted: #f3f4f6;
+      --border: #d1d5db;
+      --border-soft: #dbe2ea;
+      --text: #111827;
+      --text-muted: #4b5563;
+      --text-soft: #6b7280;
+      --primary: #111827;
+      --primary-contrast: #ffffff;
+      --accent-bg: #e5eefb;
+      --accent-text: #1d4ed8;
+      --danger: #b91c1c;
+      --radius-sm: 10px;
+      --radius-md: 12px;
+      --radius-lg: 14px;
+      --radius-xl: 18px;
+      --shadow-soft: 0 10px 24px rgba(17, 24, 39, 0.12);
+      --shadow-strong: 0 18px 44px rgba(17, 24, 39, 0.22);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
     }
 
     body {
       margin: 0;
-      background: #f5f7fb;
+      background: var(--bg);
       color: #1f2937;
     }
 
@@ -29,7 +55,7 @@
       font: inherit;
     }
 
-    .app-shell[hidden] {
+    [hidden] {
       display: none;
     }
 
@@ -45,8 +71,8 @@
       align-items: center;
       gap: 8px;
       padding: 12px 16px;
-      background: #ffffff;
-      border-bottom: 1px solid #dbe2ea;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border-soft);
     }
 
     .header-copy {
@@ -62,7 +88,7 @@
     .header p {
       margin: 4px 0 0;
       font-size: 14px;
-      color: #4b5563;
+      color: var(--text-muted);
     }
 
     .header-actions {
@@ -74,7 +100,7 @@
     .user-badge {
       font-size: 14px;
       font-weight: 700;
-      color: #111827;
+      color: var(--text);
     }
 
     .panel-toggle,
@@ -85,7 +111,7 @@
     .auth-submit,
     .logout-button {
       border: 0;
-      border-radius: 10px;
+      border-radius: var(--radius-sm);
       padding: 10px 12px;
       font-size: 14px;
       font-weight: 700;
@@ -94,15 +120,15 @@
 
     .panel-toggle,
     .modal-submit {
-      background: #111827;
-      color: #ffffff;
+      background: var(--primary);
+      color: var(--primary-contrast);
     }
 
     .new-stream-button {
       width: 100%;
       margin-bottom: 16px;
-      background: #e5eefb;
-      color: #1d4ed8;
+      background: var(--accent-bg);
+      color: var(--accent-text);
     }
 
     .export-button,
@@ -112,8 +138,8 @@
     }
 
     .subscribe-button {
-      background: #111827;
-      color: #ffffff;
+      background: var(--primary);
+      color: var(--primary-contrast);
     }
 
     .subscribe-button[disabled] {
@@ -122,21 +148,48 @@
     }
 
     .export-button {
-      border: 1px solid #d1d5db;
-      border-radius: 10px;
-      background: #ffffff;
-      color: #111827;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text);
       cursor: pointer;
     }
 
-    .modal-cancel {
-      background: #e5e7eb;
-      color: #111827;
-    }
-
+    .modal-cancel,
     .logout-button {
       background: #e5e7eb;
-      color: #111827;
+      color: var(--text);
+    }
+
+    .auth-submit.secondary {
+      background: var(--accent-bg);
+      color: var(--accent-text);
+    }
+
+    .side-panel,
+    .modal-card {
+      background: var(--surface);
+    }
+
+    .modal-cancel,
+    .logout-button,
+    .panel-tab,
+    .stream-item,
+    .filter-item {
+      color: var(--text);
+    }
+
+    .auth-field input,
+    .stream-select,
+    .modal-field input,
+    .modal-field textarea,
+    .modal-field select {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      color: var(--text);
+      padding: 10px 12px;
     }
 
     .auth-screen {
@@ -150,14 +203,10 @@
         linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
     }
 
-    .auth-screen[hidden] {
-      display: none;
-    }
-
     .auth-card {
       width: min(420px, 100%);
       padding: 24px;
-      border: 1px solid #dbe2ea;
+      border: 1px solid var(--border-soft);
       border-radius: 22px;
       background: rgba(255, 255, 255, 0.96);
       box-shadow: 0 20px 48px rgba(17, 24, 39, 0.12);
@@ -170,7 +219,7 @@
 
     .auth-copy {
       margin: 8px 0 0;
-      color: #4b5563;
+      color: var(--text-muted);
       font-size: 14px;
     }
 
@@ -186,16 +235,6 @@
       color: #374151;
     }
 
-    .auth-field input {
-      width: 100%;
-      box-sizing: border-box;
-      border: 1px solid #d1d5db;
-      border-radius: 12px;
-      background: #ffffff;
-      color: #111827;
-      padding: 12px;
-    }
-
     .auth-actions {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -204,19 +243,14 @@
     }
 
     .auth-submit {
-      background: #111827;
-      color: #ffffff;
-    }
-
-    .auth-submit.secondary {
-      background: #e5eefb;
-      color: #1d4ed8;
+      background: var(--primary);
+      color: var(--primary-contrast);
     }
 
     .auth-error {
       min-height: 20px;
       margin-top: 12px;
-      color: #b91c1c;
+      color: var(--danger);
       font-size: 13px;
     }
 
@@ -228,8 +262,7 @@
       width: min(360px, calc(100vw - 32px));
       height: 100vh;
       padding: 18px 16px;
-      background: #ffffff;
-      border-right: 1px solid #dbe2ea;
+      border-right: 1px solid var(--border-soft);
       box-shadow: 0 16px 40px rgba(17, 24, 39, 0.18);
       transform: translateX(-100%);
       transition: transform 160ms ease;
@@ -256,7 +289,7 @@
     .panel-close {
       border: 0;
       background: transparent;
-      color: #4b5563;
+      color: var(--text-muted);
       font-size: 22px;
       line-height: 1;
       cursor: pointer;
@@ -270,9 +303,9 @@
     }
 
     .panel-tab {
-      border: 1px solid #d1d5db;
+      border: 1px solid var(--border);
       border-radius: 999px;
-      background: #f9fafb;
+      background: var(--surface-soft);
       color: #374151;
       padding: 8px 12px;
       font-size: 13px;
@@ -281,13 +314,9 @@
     }
 
     .panel-tab.is-active {
-      background: #111827;
-      border-color: #111827;
-      color: #ffffff;
-    }
-
-    .panel-view[hidden] {
-      display: none;
+      background: var(--primary);
+      border-color: var(--primary);
+      color: var(--primary-contrast);
     }
 
     .panel-section {
@@ -302,7 +331,7 @@
       margin: 0 0 10px;
       font-size: 13px;
       font-weight: 700;
-      color: #4b5563;
+      color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
@@ -321,8 +350,8 @@
       gap: 12px;
       padding: 12px;
       border: 1px solid #e5e7eb;
-      border-radius: 14px;
-      background: #f9fafb;
+      border-radius: var(--radius-lg);
+      background: var(--surface-soft);
     }
 
     .stream-actions {
@@ -348,7 +377,7 @@
     .filter-note {
       margin: 4px 0 0;
       font-size: 13px;
-      color: #6b7280;
+      color: var(--text-soft);
     }
 
     .filter-item {
@@ -357,7 +386,7 @@
       gap: 8px;
       padding: 8px 10px;
       border-radius: 999px;
-      background: #f3f4f6;
+      background: var(--surface-muted);
       font-size: 13px;
     }
 
@@ -387,11 +416,6 @@
       z-index: 1290;
     }
 
-    .panel-backdrop[hidden],
-    .modal-backdrop[hidden] {
-      display: none;
-    }
-
     #map {
       height: calc(100vh - 68px);
       width: 100%;
@@ -407,29 +431,16 @@
       width: min(220px, calc(100vw - 32px));
     }
 
-    .stream-select,
-    .modal-field input,
-    .modal-field textarea,
-    .modal-field select {
-      border: 1px solid #d1d5db;
-      border-radius: 12px;
-      background: #ffffff;
-      color: #111827;
-      padding: 10px 12px;
-      font-size: 14px;
-      width: 100%;
-      box-sizing: border-box;
-    }
-
     .stream-select {
-      box-shadow: 0 10px 24px rgba(17, 24, 39, 0.12);
+      font-size: 14px;
+      box-shadow: var(--shadow-soft);
     }
 
     .post-button {
       border: 0;
       border-radius: 999px;
-      background: #111827;
-      color: #ffffff;
+      background: var(--primary);
+      color: var(--primary-contrast);
       padding: 12px 18px;
       font-size: 14px;
       font-weight: 700;
@@ -477,17 +488,12 @@
       padding: 16px;
     }
 
-    .modal[hidden] {
-      display: none;
-    }
-
     .modal-card {
       width: min(460px, 100%);
       max-height: calc(100vh - 32px);
       overflow-y: auto;
-      border-radius: 18px;
-      background: #ffffff;
-      box-shadow: 0 18px 44px rgba(17, 24, 39, 0.22);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-strong);
       padding: 18px;
     }
 
@@ -654,8 +660,7 @@
       streams: [],
       subscriptions: new Set(),
       filterEnabled: new Set(),
-      posts: [],
-      activeTab: "streams"
+      posts: []
     };
 
     const authScreen = document.getElementById("auth-screen");
@@ -718,12 +723,23 @@
       localStorage.setItem("username", username);
     }
 
+    function clearStoredAuth() {
+      localStorage.removeItem("user_id");
+      localStorage.removeItem("username");
+      state.currentUserId = null;
+      state.currentUsername = "";
+    }
+
+    function setButtonState(button, disabled, label) {
+      button.disabled = disabled;
+      button.textContent = label;
+    }
+
     function clearAppState() {
       state.streams = [];
       state.subscriptions = new Set();
       state.filterEnabled = new Set();
       state.posts = [];
-      state.activeTab = "streams";
       markersLayer.clearLayers();
       ownedStreams.innerHTML = "";
       otherStreams.innerHTML = "";
@@ -754,10 +770,7 @@
         return;
       }
 
-      localStorage.removeItem("user_id");
-      localStorage.removeItem("username");
-      state.currentUserId = null;
-      state.currentUsername = "";
+      clearStoredAuth();
       clearAppState();
       showAuthScreen();
     }
@@ -876,10 +889,7 @@
         showApp();
       } catch (error) {
         console.error(error);
-        localStorage.removeItem("user_id");
-        localStorage.removeItem("username");
-        state.currentUserId = null;
-        state.currentUsername = "";
+        clearStoredAuth();
         clearAppState();
         showAuthScreen();
         setAuthError(error.message || "Authentication failed.");
@@ -953,7 +963,6 @@
     }
 
     function setActiveTab(tab) {
-      state.activeTab = tab;
       const isStreamsTab = tab === "streams";
       streamsTab.classList.toggle("is-active", isStreamsTab);
       filterTab.classList.toggle("is-active", !isStreamsTab);
@@ -1212,8 +1221,7 @@
         return;
       }
 
-      postButton.disabled = true;
-      postButton.textContent = "Posting...";
+      setButtonState(postButton, true, "Posting...");
 
       try {
         const position = await getCurrentPosition();
@@ -1228,7 +1236,7 @@
         alert("Could not create post.");
       } finally {
         renderPostSelector();
-        postButton.textContent = "Post";
+        setButtonState(postButton, false, "Post");
       }
     }
 
@@ -1256,14 +1264,12 @@
     function closeStreamModal() {
       streamModal.hidden = true;
       modalBackdrop.hidden = true;
-      modalSubmit.disabled = false;
-      modalSubmit.textContent = "Create";
+      setButtonState(modalSubmit, false, "Create");
     }
 
     async function handleCreateStream(event) {
       event.preventDefault();
-      modalSubmit.disabled = true;
-      modalSubmit.textContent = "Creating...";
+      setButtonState(modalSubmit, true, "Creating...");
 
       try {
         await createStream({
@@ -1276,8 +1282,7 @@
       } catch (error) {
         console.error(error);
         alert("Could not create stream.");
-        modalSubmit.disabled = false;
-        modalSubmit.textContent = "Create";
+        setButtonState(modalSubmit, false, "Create");
       }
     }
 
