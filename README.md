@@ -1,6 +1,7 @@
 # HTAE
 
-HTAE is a small location-based SNS app built with FastAPI, SQLite, and a single-page HTML frontend. Users can create accounts, log in, create streams, subscribe to streams, post location-tagged messages, and export stream posts as GeoJSON.
+HTAE is a small location-based SNS app built with FastAPI, SQLite, and a single-page HTML frontend. 
+Users can create accounts, log in, create streams, subscribe to streams, post location-tagged messages, and export stream posts as GeoJSON.
 
 ## Stack
 
