@@ -6,8 +6,10 @@ import hashlib
 from pathlib import Path
 import sqlite3
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+import secrets
 from pydantic import BaseModel, field_validator
 
 from db import encode_geohash, geohash_neighbors, get_connection, init_db
@@ -100,15 +102,26 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="HTAE Backend", lifespan=lifespan)
+security = HTTPBasic()
 
+def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
+    correct_username = secrets.compare_digest(credentials.username, "PLATEAU")
+    correct_password = secrets.compare_digest(credentials.password, "UT2026")
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
 
 @app.get("/")
-def index():
+def index(authuser: str = Depends(get_current_username)):
     return FileResponse(BASE_DIR / "index.html")
 
 
 @app.post("/users")
-def create_user(payload: Credentials):
+def create_user(payload: Credentials, authuser: str = Depends(get_current_username)):
     password_hash = hash_password(payload.password)
 
     with get_connection() as connection:
@@ -127,7 +140,7 @@ def create_user(payload: Credentials):
 
 
 @app.post("/login")
-def login(payload: Credentials):
+def login(payload: Credentials, authuser: str = Depends(get_current_username)):
     with get_connection() as connection:
         user = connection.execute(
             """
@@ -145,7 +158,7 @@ def login(payload: Credentials):
 
 
 @app.get("/streams")
-def list_streams(user_id: int):
+def list_streams(user_id: int, authuser: str = Depends(get_current_username)):
     with get_connection() as connection:
         require_user(connection, user_id)
         rows = connection.execute(
@@ -168,7 +181,7 @@ def list_streams(user_id: int):
 
 
 @app.post("/streams")
-def create_stream(payload: StreamCreate):
+def create_stream(payload: StreamCreate, authuser: str = Depends(get_current_username)):
     with get_connection() as connection:
         require_user(connection, payload.user_id)
         cursor = connection.execute(
@@ -210,7 +223,7 @@ def create_stream(payload: StreamCreate):
 
 
 @app.get("/subscriptions")
-def list_subscriptions(user_id: int):
+def list_subscriptions(user_id: int, authuser: str = Depends(get_current_username)):
     with get_connection() as connection:
         require_user(connection, user_id)
         rows = connection.execute(
@@ -227,7 +240,7 @@ def list_subscriptions(user_id: int):
 
 
 @app.post("/subscriptions")
-def create_subscription(payload: SubscriptionCreate):
+def create_subscription(payload: SubscriptionCreate, authuser: str = Depends(get_current_username)):
     with get_connection() as connection:
         require_user(connection, payload.user_id)
         stream = connection.execute(
@@ -249,7 +262,7 @@ def create_subscription(payload: SubscriptionCreate):
 
 
 @app.get("/streams/{stream_id}/export")
-def export_stream(stream_id: int, user_id: int):
+def export_stream(stream_id: int, user_id: int, authuser: str = Depends(get_current_username)):
     with get_connection() as connection:
         require_user(connection, user_id)
         stream = connection.execute(
@@ -301,7 +314,7 @@ def export_stream(stream_id: int, user_id: int):
 
 
 @app.post("/posts")
-def create_post(payload: PostCreate):
+def create_post(payload: PostCreate, authuser: str = Depends(get_current_username)):
     created_at = datetime.now(timezone.utc).isoformat()
     geohash = encode_geohash(payload.lat, payload.lon, precision=6)
 
@@ -363,7 +376,7 @@ def create_post(payload: PostCreate):
 
 
 @app.get("/posts")
-def list_posts(user_id: int, lat: float | None = None, lon: float | None = None):
+def list_posts(user_id: int, lat: float | None = None, lon: float | None = None, authuser: str = Depends(get_current_username)):
     if (lat is None) != (lon is None):
         raise HTTPException(status_code=400, detail="lat and lon must be provided together")
 
