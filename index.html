@@ -34,6 +34,7 @@
       --radius-xl: 18px;
       --shadow-soft: 0 10px 24px rgba(17, 24, 39, 0.12);
       --shadow-strong: 0 18px 44px rgba(17, 24, 39, 0.22);
+      --header-height: 69px;
     }
 
     *,
@@ -71,7 +72,7 @@
     .layout {
       display: grid;
       grid-template-rows: auto 1fr;
-      min-height: 100vh;
+      min-height: 100dvh;
       position: relative;
     }
 
@@ -202,7 +203,7 @@
     }
 
     .auth-screen {
-      min-height: 100vh;
+      min-height: 100dvh;
       display: grid;
       place-items: center;
       padding: 24px;
@@ -269,7 +270,7 @@
       left: 0;
       z-index: 1200;
       width: min(360px, calc(100vw - 32px));
-      height: 100vh;
+      height: 100dvh;
       padding: 18px 16px;
       border-right: 1px solid var(--border-soft);
       box-shadow: 0 16px 40px rgba(17, 24, 39, 0.18);
@@ -426,7 +427,8 @@
     }
 
     #map {
-      height: calc(100vh - 68px);
+      height: calc(100dvh - var(--header-height));
+      min-height: calc(100dvh - var(--header-height));
       width: 100%;
     }
 
@@ -499,7 +501,7 @@
 
     .modal-card {
       width: min(460px, 100%);
-      max-height: calc(100vh - 32px);
+      max-height: calc(100dvh - 32px);
       overflow-y: auto;
       border-radius: var(--radius-xl);
       box-shadow: var(--shadow-strong);
