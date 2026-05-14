@@ -294,13 +294,7 @@ def export_stream(stream_id: int, user_id: int, authuser: str = Depends(get_curr
             (stream_id,),
         ).fetchall()
 
-    safe_stream_name = "".join(
-        char if char.isalnum() or char in ("-", "_") else "_"
-        for char in stream["name"]
-    ).strip("_")
     filename = f'stream_{stream_id}.geojson'
-    if safe_stream_name:
-        filename = f'stream_{stream_id}_{safe_stream_name}.geojson'
 
     return JSONResponse(
         content={
